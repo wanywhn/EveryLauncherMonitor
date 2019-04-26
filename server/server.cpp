@@ -93,6 +93,7 @@ void Server::myrun() {
             close(fd);
         }
 
+        emit fileWrited(QStringList());
         if (irsa.cur_changes == 0) {
             vfsInfo("no changes?!");
             continue;
@@ -118,9 +119,9 @@ void Server::myrun() {
         for (int i = 0; i < ira.size; i++) {
             char *src = ira.data + off;
             off += strlen(src) + 1;
-            printf("read: %s\n", src);
             mset.insert(QString(src));
         }
+        vfsInfo("emmit  ");
         emit fileWrited(QStringList::fromSet(mset));
     }
     close(fd);

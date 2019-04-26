@@ -1,6 +1,6 @@
 <!DOCTYPE node PUBLIC "-//freedesktop//DTD D-BUS Object Introspection 1.0//EN" "http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd">
 <node>
-  <interface name="local.Server">
+  <interface name="com.gitee.wanywhn.everylauncherMonitor">
     <signal name="fileWrited">
       <arg name="files" type="as" direction="out"/>
     </signal>

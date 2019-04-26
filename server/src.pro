@@ -28,12 +28,10 @@ INCLUDEPATH += ../dirvers
 
 HEADERS += \
     server.h
-#    ServerInterface.h \
-#    ServerAdaptor.h
 
 isEmpty(PREFIX): PREFIX = /usr
 
-dbus.files = $$PWD/com.gitee.wanywhn.everylaunchermonitor.xml
+dbus.files = $$PWD/com.gitee.wanywhn.everylauncherMonitor.xml
 dbus.header_flags += -l Server -i $$PWD/server.h
 dbus.source_flags += -l Server
 
