@@ -43,6 +43,7 @@ static LIST_HEAD(vfs_changes);
 static LIST_HEAD(monitor_path);
 static int discarded = 0, total_changes = 0, cur_changes = 0, total_memory = 0;
 static DEFINE_SPINLOCK(sl_changes);
+static DEFINE_SPINLOCK(sl_monitors);
 
 static wait_queue_head_t wq_vfs_changes;
 static atomic_t wait_vfs_changes_count;
@@ -69,9 +70,9 @@ static DEFINE_TIMER(wait_vfs_changes_timer, wait_vfs_changes_timer_callback);
 
 static int open_vfs_changes(struct inode* si, struct file* filp)
 {
-	if (atomic_cmpxchg(&vfs_changes_is_open, 0, 1) == 1) {
-		return -EBUSY;
-	}
+	//	if (atomic_cmpxchg(&vfs_changes_is_open, 0, 1) == 1) {
+	//		return -EBUSY;
+	//	}
 
 	struct TIMESTRUCT* tv = kzalloc(sizeof(struct TIMESTRUCT), GFP_KERNEL);
 	if (unlikely(tv == 0)) {
@@ -219,14 +220,18 @@ static long wait_vfs_changes(ioctl_wd_args __user* ira)
 
 	atomic_set(&wait_vfs_changes_count, INT_MAX);
 
-	mod_timer(&wait_vfs_changes_timer, jiffies + HZ * kira.condition_timeout / 1000);
-	if(wait_event_interruptible(wq_vfs_changes,cur_changes>=atomic_read(&wait_vfs_changes_count)!=0))
-			return -EAGAIN;
+	//mod_timer(&wait_vfs_changes_timer, jiffies + HZ * kira.condition_timeout / 1000);
 
-				//if (timer_pending(&wait_vfs_changes_timer) == 0)
+	pr_info("go to sleep\n");
+	//if(wait_event_interruptible(wq_vfs_changes,cur_changes>=atomic_read(&wait_vfs_changes_count)!=0))
+	set_current_state(TASK_INTERRUPTIBLE);
+	schedule_timeout(HZ*kira.condition_timeout/1000);
+	//if(wait_event_interruptible_timeout(wq_vfs_changes,0,HZ*kira.condition_timeout/1000))
+		//return -EAGAIN;
 
+
+	pr_info("wake up!\n");
 	atomic_set(&wait_vfs_changes_count, -1);
-	del_timer(&wait_vfs_changes_timer);
 
 	return 0;
 }
@@ -246,21 +251,35 @@ static long add_list_item(ioctl_item_args __user *iia){
 	}
 	pr_info("success copy\n");
 	nitem->path=buff;
+	spin_lock(&sl_monitors);
 	list_add(&nitem->list,&monitor_path);
+	spin_unlock(&sl_monitors);
 	pr_info("add:%s\n",nitem->path);
 	return 0;
 
 }
-static long remve_list_item(ioctl_item_args __user *iia){
-	struct list_head *p,*next;
-	list_for_each_safe(p,next,&monitor_path){
-		vfs_change *en=list_entry(p,vfs_change,list);
-		//if(strcmp(en->path,kiia.data)==0){
-		pr_info("delete %s\n",en->path);
-			list_del(p);
-			//break;
-		//}
-	}
+static long remve_list_item(ioctl_item_args __user *ita){
+//	struct list_head *p,*next;
+//	pr_info("trying to delete\n");
+//	spin_lock(&sl_monitors);
+//		pr_info("delete ont0\n");
+//		if(list_empty(&monitor_path)){
+//			spin_unlock(&sl_monitors);
+//				return 0;
+//				}
+//	list_for_each_safe(p,next,&monitor_path){
+//		pr_info("delete ont1\n");
+//		vfs_change *en=list_entry(p,vfs_change,list);
+//		pr_info("delete ont2\n");
+//		//if(strcmp(en->path,kiia.data)==0){
+//		kfree(en->path);
+//		pr_info("delete ont3\n");
+//		list_del(p);
+//		pr_info("delete ont4\n");
+//		//break;
+//		//}
+//	}
+//	spin_unlock(&sl_monitors);
 	return 0;
 }
 
@@ -274,9 +293,11 @@ static long ioctl_vfs_changes(struct file* filp, unsigned int cmd, unsigned long
 		case VC_IOCTL_WAITDATA:
 			return wait_vfs_changes((ioctl_wd_args*)arg);
 		case VC_IOCTL_ADDITEM:
-			return add_list_item((ioctl_item_args *)arg);
+			return -EINVAL;
+			//return add_list_item((ioctl_item_args *)arg);
 		case VC_IOCTL_DELETEITEM:
-			return remve_list_item((ioctl_item_args *)arg);
+			return -EINVAL;
+			//return remve_list_item(0);
 
 
 		default:
@@ -331,7 +352,7 @@ static void remove_oldest(void)
 		list_for_each_safe(p, next, &vfs_changes) {
 			vfs_change* vc = list_entry(p, vfs_change, list);
 			// if (printk_ratelimit())
-			 	pr_warn("vfs-change discarded:%s\n",vc->path);
+			pr_warn("vfs-change discarded:%s\n",vc->path);
 			REMOVE_ENTRY(p, vc);
 			discarded++;
 			break;
@@ -358,36 +379,31 @@ void vfs_changed(int act, const char* root, const char* src, const char* dst)
 		return;
 	}
 
+	pr_info("insdide :%s\n",src);
 	vfs_change *item;
 	spin_lock(&sl_changes);
-	list_for_each_entry(item,&monitor_path,list){
-		int l1=strlen(item->path);
-		int l2=strlen(src)-strlen(dst);
-		pr_info("compare %s with %s\n",src,item->path);
-		if(l2>=l1&&strncmp(item->path,src,l1)==0){
-		pr_info("get this:%s\n",src);
+	//list_for_each_entry(item,&monitor_path,list){
+	//	int l1=strlen(item->path);
+	//	int l2=strlen(src)-strlen(dst);
+	//	pr_info("compare %s with %s\n",src,item->path);
+	//	if(l2>=l1&&strncmp(item->path,src,l1)==0){
+	//		pr_info("get this:%s\n",src);
       		p->path=kmalloc(strlen(src),GFP_ATOMIC);
-      		strcpy(p->path,src);
+    		strcpy(p->path,src);
       		list_add_tail(&p->list,&vfs_changes);
       		total_changes++;
       		cur_changes++;
       		total_memory += strlen(p->path);
-
-			break;
-		}
-	}
+	//		break;
+	//	}
+	//}
 	spin_unlock(&sl_changes);
 
 
-		vfs_change* vc = (vfs_change*)p;
+	//vfs_change* vc = (vfs_change*)p;
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0)
-	do_gettimeofday(&vc->ts);
+	//do_gettimeofday(&vc->ts);
 #else
-	ktime_get_real_ts64(&vc->ts);
+	//ktime_get_real_ts64(&vc->ts);
 #endif
-	int wvcc = atomic_read(&wait_vfs_changes_count);
-	if (wvcc > 0 && cur_changes >= wvcc) {
-		wake_up_interruptible(&wq_vfs_changes);
-	}
 }
-

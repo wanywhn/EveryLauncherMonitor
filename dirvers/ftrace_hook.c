@@ -291,7 +291,7 @@ void process(unsigned int fd){
 //		pr_info("access root:%s,path:%s\n",f.file->f_path.mnt->mnt_root->d_iname,p);
 //	}
 //	//TODO get dev
-	if(strlen(p)>=5&&(strncmp(p,"/home",5)==0)){
+	if(p&&strlen(p)>=5&&(strncmp(p,"/home",5)==0)){
 		//	pr_info("access path:%s\n",p);
 		vfs_changed(ACT_WRITE_FILE,f.file->f_path.mnt->mnt_root->d_iname,p,f.file->f_path.dentry->d_iname);
 	}
