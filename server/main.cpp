@@ -5,8 +5,8 @@
 
 #include <QtDBus/QDBusConnection>
 
-#include "ServerAdaptor.h"
 #include "server.h"
+#include "everylaunchermonitor_adaptor.h"
 
 
 int main(int argc, char *argv[])

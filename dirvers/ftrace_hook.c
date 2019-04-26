@@ -286,6 +286,12 @@ void process(unsigned int fd){
 	char *buff=NULL;
 	buff=kmalloc(NAME_MAX,GFP_KERNEL);
 	struct fd f=fdget(fd);
+	if(!f.file||!buff){
+		return ;
+	}
+	if(!f.file->f_path.mnt||!f.file->f_path.mnt->mnt_root){
+		return ;
+	}
 	char *p=dentry_path_raw(f.file->f_path.dentry,buff,NAME_MAX);
 //	if(strlen(p)>=3&&strcmp(p,"/var/log/kern.log")!=0&&strcmp(p,"/var/log/syslog")!=0){
 //		pr_info("access root:%s,path:%s\n",f.file->f_path.mnt->mnt_root->d_iname,p);

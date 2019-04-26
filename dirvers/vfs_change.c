@@ -139,6 +139,7 @@ static ssize_t read_vfs_changes(struct file* filp, char __user* buf, size_t size
 
 static long move_vfs_changes(ioctl_rd_args __user* ira)
 {
+	pr_info("move info\n");
 	if (atomic_cmpxchg(&wait_vfs_changes_count, -1, INT_MAX) >= 0) {
 		return -EBUSY;
 	}
@@ -374,6 +375,13 @@ void vfs_changed(int act, const char* root, const char* src, const char* dst)
 	if(root==NULL||src==NULL||dst==NULL){
 		return ;
 	}
+	//TODO read lock;
+	vfs_change *item=list_first_entry_or_null(&vfs_changes,vfs_change,list);
+	if(item!=NULL){
+		if(strcmp(item->path,src)==0){
+			return;
+		}
+	}
 	remove_oldest();
 	vfs_change *p = kmalloc(sizeof(vfs_change), GFP_ATOMIC);
 	if (unlikely(p == 0)) {
@@ -381,19 +389,17 @@ void vfs_changed(int act, const char* root, const char* src, const char* dst)
 				src, dst, current->comm, current->pid);
 		return;
 	}
-
 	pr_info("insdide :%s\n",src);
-	vfs_change *item;
 	spin_lock(&sl_changes);
 	//list_for_each_entry(item,&monitor_path,list){
-	//	int l1=strlen(item->path);
+	//	int l1=strlen(item->path)-strlen(dst);
 	//	int l2=strlen(src)-strlen(dst);
 	//	pr_info("compare %s with %s\n",src,item->path);
 	//	if(l2>=l1&&strncmp(item->path,src,l1)==0){
 	//		pr_info("get this:%s\n",src);
       		p->path=kmalloc(strlen(src),GFP_ATOMIC);
     		strcpy(p->path,src);
-      		list_add_tail(&p->list,&vfs_changes);
+      		list_add(&p->list,&vfs_changes);
       		total_changes++;
       		cur_changes++;
       		total_memory += strlen(p->path);
@@ -401,7 +407,6 @@ void vfs_changed(int act, const char* root, const char* src, const char* dst)
 	//	}
 	//}
 	spin_unlock(&sl_changes);
-
 
 	//vfs_change* vc = (vfs_change*)p;
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0)
