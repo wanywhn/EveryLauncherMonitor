@@ -1,7 +1,11 @@
 #include <QCoreApplication>
 #include <QThread>
 #include <QLoggingCategory>
+#include <QDBusInterface>
 
+#include <QtDBus/QDBusConnection>
+
+#include "ServerAdaptor.h"
 #include "server.h"
 
 
@@ -16,18 +20,37 @@ int main(int argc, char *argv[])
 #endif
 
     Server *server = new Server();
+    auto *serverAdapter=new ServerAdaptor(server);
+    QThread *workerThread=new QThread();
 
     //TODO DBUS set watchpaths ,clear watchpaths,notify changes
 
-    server->start();
+    QDBusConnection connection = QDBusConnection::sessionBus();
+    if (!connection.isConnected()) {
+              fprintf(stderr, "Cannot connect to the D-Bus session bus.\n"
+                      "To start it, run:\n"
+                      "\teval `dbus-launch --auto-syntax`\n");
+              return 1;
+          }
+    if(!connection.registerService("com.gitee.wanywhn.everylauncherMonitor"))
+    {
+        qDebug() << "error:" << connection.lastError().message();
+        exit(-1);
+    }
+    connection.registerObject("/com/gitee/wanywhn/everylauncherMonitor",serverAdapter,QDBusConnection::ExportAllSignals|QDBusConnection::ExportAllSlots);
+    QObject::connect(workerThread,&QThread::started,server,&Server::myrun);
 
-    server->setWatchPaths(QStringList("/home/ubuntu"));
-    QObject::connect(server,&Server::fileWrited,[](QStringList l){
-        for (auto item:l){
-            qDebug()<<("main get :"+item);
-
-
-                     }
-    });
+    static QDBusInterface notifyApp("com.gitee.wanywhn.everylauncher",
+                                    "/com/gitee/wanywhn/everylauncher",
+                                    "com.gitee.wanywhn.everylauncher");
+    if(!notifyApp.isValid()){
+        qDebug()<<"notify is not valid";
+        return 0;
+    }
+    server->moveToThread(workerThread);
+    workerThread->start();
+//    QObject::connect(server,&Server::fileWrited,[](QStringList l){
+//                        notifyApp.call( "fileWrited",l);
+//    });
     return app.exec();
 }

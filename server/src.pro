@@ -1,13 +1,16 @@
-TARGET = deepin-anything-monitor
+TARGET = everylauncher-monitor
 TEMPLATE = app
 CONFIG += c++11
+QT += dbus
 QT -= gui
 
-#include(../../common.pri)
 
 SOURCES += \
     main.cpp \
-    server.cpp
+    server.cpp\
+    ServerAdaptor.cpp \
+    ServerInterface.cpp
+
 
 #CONFIG(debug, debug|release) {
 #    QMAKE_RPATHLINKDIR += $$_PRO_FILE_PWD_/../../../library/bin/debug
@@ -24,9 +27,26 @@ INCLUDEPATH += ../dirvers
 #}
 
 HEADERS += \
-    server.h
+    server.h \
+    ServerInterface.h \
+    ServerAdaptor.h
 
 isEmpty(PREFIX): PREFIX = /usr
+
+#dbus.files = $$PWD/com.gitee.wanywhn.everylauncher.xml
+#dbus.header_flags += -l LFTManager -i $$PWD/../lib/lftmanager.h
+#dbus.source_flags += -l LFTManager
+
+#DBUS_ADAPTORS += dbus
+
+#dbus_xmls.path = /usr/share/dbus-1/interfaces
+#dbus_xmls.files = $$dbus.files
+#
+#dbus_service.path = /usr/share/dbus-1/system-services
+#dbus_service.files = $$PWD/everylauncher-monitor.service
+#
+#dbus_config.path = /etc/dbus-1/system.d
+#dbus_config.files = $$PWD/com.gitee.wanywhn.everylauncher.conf
 
 target.path = $$PREFIX/bin
 
@@ -36,4 +56,4 @@ systemd_service.path = /lib/systemd/system
 sysusers.files = systemd.sysusers.d/$${TARGET}.conf
 sysusers.path = $$PREFIX/lib/sysusers.d
 
-INSTALLS += target systemd_service sysusers
+INSTALLS += target systemd_service sysusers #dbus_xmls dbus_service dbus_config

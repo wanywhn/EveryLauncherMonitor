@@ -371,6 +371,9 @@ MODULE_PARM_DESC(merge_actions, "merge actions to minimize data transfer and fs 
 
 void vfs_changed(int act, const char* root, const char* src, const char* dst)
 {
+	if(root==NULL||src==NULL||dst==NULL){
+		return ;
+	}
 	remove_oldest();
 	vfs_change *p = kmalloc(sizeof(vfs_change), GFP_ATOMIC);
 	if (unlikely(p == 0)) {

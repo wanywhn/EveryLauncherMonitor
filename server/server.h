@@ -1,25 +1,26 @@
 #ifndef SERVER_H
 #define SERVER_H
-
-
+#include <QDBusContext>
 #include <QMutex>
 #include <QThread>
 
 
-class Server : public QThread
+class Server : public QObject
 {
     Q_OBJECT
+    Q_CLASSINFO("EveryLauncher FileMonitor Interface","com.gitee.wanywhn.everylauncherMonitor")
 
 public:
     explicit Server(QObject *parent = nullptr);
 
+public slots:
+    void myrun();
     void setWatchPaths(QStringList paths);
-    void resetWtachPaths(QStringList paths);
 signals:
+//    void resetWtachPaths(QStringList paths);
     void fileWrited(QStringList files);
 
 private:
-    void run() override;
     QStringList watchList;
     QMutex wlMutex;
 };

@@ -3,6 +3,7 @@
 #include "vfs_change_uapi.h"
 
 #include <QCoreApplication>
+#include <QDBusInterface>
 #include <QDebug>
 #include <QLoggingCategory>
 
@@ -19,8 +20,7 @@
 Q_LOGGING_CATEGORY(vfs, "vfs", QtInfoMsg)
 #define vfsInfo(...) qCInfo(vfs, __VA_ARGS__)
 
-Server::Server(QObject *parent) : QThread(parent) {
-    qRegisterMetaType<QList<QPair<QByteArray, QByteArray>>>();
+Server::Server(QObject *parent):QObject(parent)  {
 }
 
 void Server::setWatchPaths(QStringList paths) {
@@ -50,7 +50,7 @@ void Server::setWatchPaths(QStringList paths) {
     // close(fd);
 }
 
-void Server::run() {
+void Server::myrun() {
     int fd = open("/proc/" PROCFS_NAME, O_RDONLY);
 
     if (fd < 0) {
@@ -59,32 +59,33 @@ void Server::run() {
 
     ioctl_wd_args wd;
 
-    wd.condition_timeout = 10000;
+    wd.condition_timeout = 5000;
 
     vfsInfo("before ioctl");
     while (ioctl(fd, VC_IOCTL_WAITDATA, &wd) == 0) {
 
-        //      vfsInfo("in wile");
-        if (!watchList.isEmpty()) {
-            vfsInfo("while want get");
-            QMutexLocker locker(&wlMutex);
-            vfsInfo("while got ");
-            if (!watchList.isEmpty()) {
-                ioctl_item_args item;
-                if (ioctl(fd, VC_IOCTL_DELETEITEM, &item) != 0) {
-                    OnError("clear kernel watch paths failed");
-                }
-                for (auto path : watchList) {
-                    item.data = path.toLatin1().data();
-                    item.size = path.length() + 1;
-                    if (ioctl(fd, VC_IOCTL_ADDITEM, &item) != 0) {
-                        OnError("Add " + path + " Failed");
-                    }
-                }
-                watchList.clear();
-                vfsInfo("added");
-            }
-        }
+        QCoreApplication::processEvents();
+        vfsInfo("in wile");
+        //if (!watchList.isEmpty()) {
+        //    QMutexLocker locker(&wlMutex);
+        //    vfsInfo("while want get");
+        //    vfsInfo("while got ");
+        //    if (!watchList.isEmpty()) {
+        //        ioctl_item_args item;
+        //        if (ioctl(fd, VC_IOCTL_DELETEITEM,0) != 0) {
+        //            OnError("clear kernel watch paths failed");
+        //        }
+        //        for (auto path : watchList) {
+        //            item.data = path.toLatin1().data();
+        //            item.size = path.length() + 1;
+        //            if (ioctl(fd, VC_IOCTL_ADDITEM, &item) != 0) {
+        //                OnError("Add " + path + " Failed");
+        //            }
+        //        }
+        //        watchList.clear();
+        //        vfsInfo("added");
+        //    }
+        //}
 
         ioctl_rs_args irsa;
 
@@ -93,6 +94,7 @@ void Server::run() {
         }
 
         if (irsa.cur_changes == 0) {
+            vfsInfo("no changes?!");
             continue;
         }
 
