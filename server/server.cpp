@@ -3,6 +3,7 @@
 #include "vfs_change_uapi.h"
 
 #include <QCoreApplication>
+#include <QCoreApplication>
 #include <QDBusInterface>
 #include <QDebug>
 #include <QLoggingCategory>
@@ -21,14 +22,28 @@ Q_LOGGING_CATEGORY(vfs, "vfs", QtInfoMsg)
 #define vfsInfo(...) qCInfo(vfs, __VA_ARGS__)
 
 Server::Server(QObject *parent):QObject(parent)  {
+    std::string reason;
+    //TODO -c
+    std::string confg="/home/tender/.config/EveryLauncher/recoll";
+    theconfig = recollinit(0,0, 0, reason,&confg);
+    if (!theconfig || !theconfig->ok()) {
+        QString msg = "Configuration problem: ";
+        msg += QString::fromUtf8(reason.c_str());
+//        QMessageBox::critical(0, "Recoll",  msg);
+        exit(1);
+    }
+//    auto tdirs=theconfig->getTopdirs(false);
+//    for(auto item:tdirs){
+//       monitorPaths.emplace_back(item) ;
+//    }
+    this->second=10000;
+
 }
 
 void Server::setWatchPaths(QStringList paths) {
     // TODO sort for kernel module easy to use?
     std::sort(paths.begin(), paths.end());
-    vfsInfo("setwatch want get");
     QMutexLocker locer(&wlMutex);
-    vfsInfo("setwatch got");
     watchList.clear();
     watchList.append(paths);
     // int fd=open("/proc/" PROCFS_NAME,O_RDWR);
@@ -50,6 +65,12 @@ void Server::setWatchPaths(QStringList paths) {
     // close(fd);
 }
 
+void Server::setFileMonitorInter(int sec)
+{
+
+    this->second=sec*1000;
+}
+
 void Server::myrun() {
     int fd = open("/proc/" PROCFS_NAME, O_RDONLY);
 
@@ -59,7 +80,7 @@ void Server::myrun() {
 
     ioctl_wd_args wd;
 
-    wd.condition_timeout = 5000;
+    wd.condition_timeout = this->second;
 
     vfsInfo("before ioctl");
     while (ioctl(fd, VC_IOCTL_WAITDATA, &wd) == 0) {
@@ -121,8 +142,11 @@ void Server::myrun() {
             off += strlen(src) + 1;
             mset.insert(QString(src));
         }
-        vfsInfo("emmit  ");
-        emit fileWrited(QStringList::fromSet(mset));
+        vfsInfo("emmit  %d change things",mset.size());
+//        QSet<QString> v_intersection;
+//        std::set_intersection(mset.cbegin(),mset.cend(),
+
+                emit fileWrited(QStringList::fromSet(mset));
     }
     close(fd);
 }

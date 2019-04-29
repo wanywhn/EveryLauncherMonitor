@@ -23,17 +23,12 @@ int main(int argc, char *argv[])
 #endif
 
     Server *server = new Server();
-    auto *serverAdapter=new EverylauncherMonitorAdaptor(server);
+    auto *serverAdapter=new EveryLauncherMonitorAdaptor(server);
     QThread *workerThread=new QThread();
-
-    //TODO DBUS set watchpaths ,clear watchpaths,notify changes
 
     QDBusConnection connection = QDBusConnection::sessionBus();
     if (!connection.isConnected()) {
-              fprintf(stderr, "Cannot connect to the D-Bus session bus.\n"
-                      "To start it, run:\n"
-                      "\teval `dbus-launch --auto-syntax`\n");
-              return 1;
+              return -1;
           }
     if(!connection.registerService(DBUS_SERVER))
     {
@@ -42,7 +37,6 @@ int main(int argc, char *argv[])
     }
     connection.registerObject(DBUS_PATH,DBUS_INTERFACE,server);
     QObject::connect(workerThread,&QThread::started,server,&Server::myrun);
-
    // static QDBusInterface notifyApp("com.gitee.wanywhn.everylauncher",
    //                                 "/com/gitee/wanywhn/everylauncher",
    //                                 "com.gitee.wanywhn.everylauncher");

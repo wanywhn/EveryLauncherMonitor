@@ -8,8 +8,6 @@ QT -= gui
 SOURCES += \
     main.cpp \
     server.cpp\
-#    ServerAdaptor.cpp \
-#    ServerInterface.cpp
 
 
 #CONFIG(debug, debug|release) {
@@ -18,7 +16,10 @@ SOURCES += \
 #    QMAKE_RPATHLINKDIR += $$_PRO_FILE_PWD_/../../../library/bin/release
 #}
 
-INCLUDEPATH += ../dirvers
+LIBS += -lrecoll -L/usr/lib/recoll
+INCLUDEPATH += ../dirvers\
+                ../../recoll1-code/src/common\
+                ../../recoll1-code/src/utils
 #LIBS += -L$$OUT_PWD/../../lib -ldeepin-anything-server-lib
 
 #CONFIG(debug, debug|release) {
@@ -31,11 +32,15 @@ HEADERS += \
 
 isEmpty(PREFIX): PREFIX = /usr
 
-dbus.files = $$PWD/com.gitee.wanywhn.everylauncherMonitor.xml
+dbus.files = $$PWD/com.gitee.wanywhn.EveryLauncherMonitor.xml
 dbus.header_flags += -l Server -i $$PWD/server.h
 dbus.source_flags += -l Server
-
 DBUS_ADAPTORS += dbus
+
+dbus_itface.files= $$PWD/com.gitee.wanywhn.EveryLauncherMonitor.xml
+dbus_itface.header_flags += -c EveryLauncherMonitorInterface
+dbus_itface.source_flags += -c EveryLauncherMonitorInterface
+DBUS_INTERFACES+=dbus_itface
 
 dbus_xmls.path = /usr/share/dbus-1/interfaces
 dbus_xmls.files = $$dbus.files
