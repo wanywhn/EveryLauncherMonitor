@@ -1,0 +1,20 @@
+Source: everylauncher-monitor
+Section: admin
+Priority: optional
+Maintainer: Deepin Package Builder <packages@deepin.com>
+Build-Depends: debhelper (>= 9), dkms, dh-systemd, qtbase5-dev,
+ pkg-config, libudisks2-qt5-dev, libmount-dev, libdtkcore-dev
+Standards-Version: 3.9.8
+Homepage: http://github.com/linuxdeepin/deepin-anything
+
+Package: everylauncher-monitor-dkms
+Architecture: all
+Depends: ${shlibs:Depends}, ${misc:Depends}, dkms
+Description: anything module
+ anything kernel module package
+
+Package: everylauncher-monitor-server
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, everylauncher-monitor-dkms
+Description: anything server application and lib
+ anything server package

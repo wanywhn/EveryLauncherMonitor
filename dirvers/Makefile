@@ -1,12 +1,12 @@
-KERNEL_PATH ?= /lib/modules/$(shell uname -r)/build
+KERNEL_MODULES :=/lib/modules/$(shell uname -r)/build
 
-obj-m += mftrace_hook.o
-mftrace_hook-objs := ftrace_hook.o arg_extractor.o vfs_change.o
+obj-m += everylauncher_monitor_drv.o
+everylauncher_monitor_drv-objs :=everylauncher_monitor.o arg_extractor.o vfs_change.o
+
+.PHONY: all clean 
 
 all:
-	make -C $(KERNEL_PATH) M=$(PWD) modules
-test:
-	gcc -o proc_test proc_test.c
+	make -C $(KERNEL_MODULES) M=$(PWD) modules
 
 clean:
-	make -C $(KERNEL_PATH) M=$(PWD) clean
+	make -C $(KERNEL_MODULES) M=$(PWD) clean
