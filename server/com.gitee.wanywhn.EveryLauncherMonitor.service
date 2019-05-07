@@ -1,0 +1,4 @@
+[D-BUS Service]
+Name=com.gitee.wanywhn.EveryLauncherMonitor
+Exec=/usr/bin/everylauncher-monitor
+

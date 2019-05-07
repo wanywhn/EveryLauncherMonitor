@@ -3,12 +3,7 @@ Description=EveryLauncher Monitor Service
 After=systemd-modules-load.service
 
 [Service]
-User=deepin-anything-server
-Group=deepin-anything-server
-ExecStart=/usr/bin/deepin-anything-monitor
-Environment=DAS_DEBUG_PLUGINS=1
-Restart=always
-RestartSec=10
+ExecStart=/usr/bin/everylauncher-monitor
 
 [Install]
 WantedBy=multi-user.target

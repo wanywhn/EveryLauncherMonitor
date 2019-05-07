@@ -42,21 +42,16 @@ dbus_itface.header_flags += -c EveryLauncherMonitorInterface
 dbus_itface.source_flags += -c EveryLauncherMonitorInterface
 DBUS_INTERFACES+=dbus_itface
 
-dbus_xmls.path = /usr/share/dbus-1/interfaces
 dbus_xmls.files = $$dbus.files
-#
-#dbus_service.path = /usr/share/dbus-1/system-services
-#dbus_service.files = $$PWD/everylauncher-monitor.service
-#
-#dbus_config.path = /etc/dbus-1/system.d
-#dbus_config.files = $$PWD/com.gitee.wanywhn.everylauncher.conf
+dbus_xmls.path = /usr/share/dbus-1/interfaces
+
+dbus_service.files = $$PWD/com.gitee.wanywhn.EveryLauncherMonitor.service
+dbus_service.path = /usr/share/dbus-1/services
 
 target.path = $$PREFIX/bin
 
 systemd_service.files = $${TARGET}.service
-systemd_service.path = /lib/systemd/system
+systemd_service.path = $${PREFIX}/lib/systemd/system
 
-sysusers.files = systemd.sysusers.d/$${TARGET}.conf
-sysusers.path = $$PREFIX/lib/sysusers.d
 
-INSTALLS += target systemd_service sysusers dbus_xmls #dbus_service dbus_config
+INSTALLS += target systemd_service dbus_xmls dbus_service 
