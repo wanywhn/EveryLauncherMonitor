@@ -1,0 +1,12 @@
+#!/bin/bash
+
+action="$1"
+
+if [ "$action" = configure ]; then
+    set -e
+    setcap cap_sys_admin+ep /usr/bin/everylauncher-monitor ||(echo "Failed set CAP_SYS_ADMIN on everylauncher-monitor" && false)
+fi
+
+#DEBHELPER#
+
+

@@ -1,13 +1,14 @@
 TARGET = everylauncher-monitor
 TEMPLATE = app
-CONFIG += c++11
+CONFIG += c++11 link_pkgconfig
+PKGCONFIG+=Qt5Xdg
 QT += dbus
 QT -= gui
 
 
 SOURCES += \
     main.cpp \
-    server.cpp\
+    server.cpp
 
 
 #CONFIG(debug, debug|release) {
@@ -33,8 +34,8 @@ HEADERS += \
 isEmpty(PREFIX): PREFIX = /usr
 
 dbus.files = $$PWD/com.gitee.wanywhn.EveryLauncherMonitor.xml
-dbus.header_flags += -l Server -i $$PWD/server.h
-dbus.source_flags += -l Server
+dbus.header_flags += -l Server -i $$PWD/server.h -c EveryLauncherMonitorAdaptor
+dbus.source_flags += -l Server -c EveryLauncherMonitorAdaptor
 DBUS_ADAPTORS += dbus
 
 dbus_itface.files= $$PWD/com.gitee.wanywhn.EveryLauncherMonitor.xml

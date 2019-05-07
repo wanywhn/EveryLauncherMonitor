@@ -1,12 +1,16 @@
 #ifndef SERVER_H
 #define SERVER_H
 #include <QDBusContext>
+#include <QFileSystemWatcher>
 #include <QMutex>
+#include <QSet>
 #include <QThread>
+#include <QTimer>
 #include <rclconfig.h>
 #include <rclinit.h>
 
-
+extern QString AppName;
+#define CHK(expr, errcode) if((expr)==errcode) perror(#expr), exit(EXIT_FAILURE)
 class Server : public QObject
 {
     Q_OBJECT
@@ -17,18 +21,27 @@ public:
 
 public slots:
     void myrun();
-    void setWatchPaths(QStringList paths);
     void setFileMonitorInter(int sec);
 signals:
-//    void resetWtachPaths(QStringList paths);
     void fileWrited(QStringList files);
 
+private slots:
+    void timeouted();
 private:
-    QStringList watchList;
-    QMutex wlMutex;
+    void readConfig();
+private:
     RclConfig *theconfig;
-//    std::vector<QString> monitorPaths;
-    int second;
+    std::set<std::string> topdirs;
+    std::set<std::string> skippedPaths;
+    std::set<std::string> skipeedNames;
+
+    std::set<std::string> mset;
+
+    QFileSystemWatcher *watcher;
+    QTimer *timer;
+
+    bool configFileModified{false};
+
 };
 
 

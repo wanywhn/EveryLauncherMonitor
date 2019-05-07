@@ -1,152 +1,173 @@
 #include "server.h"
-#include "vfs_change_consts.h"
-#include "vfs_change_uapi.h"
-
-#include <QCoreApplication>
 #include <QCoreApplication>
 #include <QDBusInterface>
 #include <QDebug>
+#include <QDir>
 #include <QLoggingCategory>
+#include <QStandardPaths>
 
+#include <XdgDirs>
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
+#include <linux/version.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/fanotify.h>
 #include <sys/ioctl.h>
+#include <sys/select.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <unistd.h>
 
-#define OnError(message)                                                       \
-    qCritical() << message << QString::fromLocal8Bit(strerror(errno));           \
-    qApp->exit(errno);                                                           \
-    return
+QString RECOLL_CONFIG_DIR = "recoll_conf";
 
 Q_LOGGING_CATEGORY(vfs, "vfs", QtInfoMsg)
 #define vfsInfo(...) qCInfo(vfs, __VA_ARGS__)
 
-Server::Server(QObject *parent):QObject(parent)  {
-    std::string reason;
-    //TODO -c
-    std::string confg="/home/tender/.config/EveryLauncher/recoll";
-    theconfig = recollinit(0,0, 0, reason,&confg);
-    if (!theconfig || !theconfig->ok()) {
-        QString msg = "Configuration problem: ";
-        msg += QString::fromUtf8(reason.c_str());
-//        QMessageBox::critical(0, "Recoll",  msg);
-        exit(1);
-    }
-//    auto tdirs=theconfig->getTopdirs(false);
-//    for(auto item:tdirs){
-//       monitorPaths.emplace_back(item) ;
-//    }
-    this->second=10000;
-
+Server::Server(QObject *parent) : QObject(parent) {
+  watcher = new QFileSystemWatcher(this);
+  timer = new QTimer(this);
+  readConfig();
+  watcher->addPath(
+      QString::fromStdString(theconfig->getConfDir() + "/recoll.conf"));
+  connect(watcher, &QFileSystemWatcher::fileChanged, [this]() {
+    this->configFileModified = true;
+    readConfig();
+  });
+  connect(timer, &QTimer::timeout, this,&Server::timeouted);
+  timer->setInterval(10000);
+  timer->start();
 }
 
-void Server::setWatchPaths(QStringList paths) {
-    // TODO sort for kernel module easy to use?
-    std::sort(paths.begin(), paths.end());
-    QMutexLocker locer(&wlMutex);
-    watchList.clear();
-    watchList.append(paths);
-    // int fd=open("/proc/" PROCFS_NAME,O_RDWR);
-    // if(fd<0){
-    //     OnError("can't open /proc");
-    // }
-    // ioctl_item_args item;
-    // if(ioctl(fd,VC_IOCTL_DELETEITEM,&item)!=0){
-    //     OnError("clear kernel watch paths failed");
-    // }
-    // for(auto path:paths){
-    //     item.
-    //           data=path.toLatin1().data();
-    //     item.size=path.length()+1;
-    //     if(ioctl(fd,VC_IOCTL_ADDITEM,&item)!=0){
-    //         OnError("Add "+path+" Failed");
-    //     }
-    // }
-    // close(fd);
+void Server::setFileMonitorInter(int sec) {
+    this->timer->setInterval(1000 * sec);
 }
 
-void Server::setFileMonitorInter(int sec)
+void Server::timeouted()
 {
+    QStringList md;
+    for(auto item:mset){
+        md<<QString::fromStdString(item);
+    }
+    mset.clear();
+    emit fileWrited(md);
 
-    this->second=sec*1000;
+}
+
+void Server::readConfig() {
+  std::string reason;
+  auto cfgPath =
+      QDir(QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation));
+  std::string confg = cfgPath.absoluteFilePath(RECOLL_CONFIG_DIR).toStdString();
+  theconfig = recollinit(0, 0, 0, reason, &confg);
+  if (!theconfig || !theconfig->ok()) {
+    QString msg = "Configuration problem: ";
+    msg += QString::fromUtf8(reason.c_str());
+    qDebug() << msg;
+    exit(1);
+  }
+  topdirs.clear();
+  for (auto item : theconfig->getTopdirs()) {
+    topdirs.insert(item);
+  }
+  skippedPaths.clear();
+  for (auto item : theconfig->getSkippedPaths()) {
+    skippedPaths.insert(item);
+  }
+  skipeedNames.clear();
+  for (auto item : theconfig->getSkippedNames()) {
+    skipeedNames.insert(item);
+  }
 }
 
 void Server::myrun() {
-    int fd = open("/proc/" PROCFS_NAME, O_RDONLY);
 
-    if (fd < 0) {
-        OnError("can't open /proc");
+  int maxfdp{0};
+  fd_set rset;
+
+  char buf[4096];
+  char fdpath[32];
+  char path[PATH_MAX + 1];
+  ssize_t buflen, linklen;
+  struct fanotify_event_metadata *metadata;
+  struct timeval til;
+  til.tv_sec=5;
+  til.tv_usec=0;
+
+  int *fdarr{nullptr};
+  for (;;) {
+    auto dirSize = topdirs.size();
+    if (dirSize <= 0) {
+      sleep(10);
+    }
+    if (fdarr != nullptr) {
+      delete fdarr;
+      fdarr = nullptr;
+    }
+    fdarr = new int[dirSize];
+
+    //创建fanotify
+    FD_ZERO(&rset);
+    int i=0;
+    for(auto iter=topdirs.cbegin();iter!=topdirs.cend();++iter,++i){
+//    for (unsigned int i = 0; i != dirSize; ++i) {
+      CHK(fdarr[i] = fanotify_init(FAN_CLASS_NOTIF, O_RDONLY), -1);
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 20, 0))
+
+      CHK(fanotify_mark(fdarr[i], FAN_MARK_ADD | FAN_MARK_FILESYSTEM,
+                        FAN_MODIFY | FAN_EVENT_ON_CHILD, AT_FDCWD,
+                        iter->c_str()),
+          -1);
+#else
+      CHK(fanotify_mark(fdarr[i], FAN_MARK_ADD | FAN_MARK_MOUNT,
+                        FAN_MODIFY | FAN_EVENT_ON_CHILD, AT_FDCWD,
+                        iter->c_str()),
+          -1);
+#endif
+      FD_SET(fdarr[i], &rset);
+      if (fdarr[i] > maxfdp) {
+        maxfdp = fdarr[i];
+      }
+    }
+    ++maxfdp;
+
+    //开始监控
+    for (;;) {
+      if (configFileModified) {
+        configFileModified = false;
+        break;
+      }
+      QCoreApplication::processEvents();
+      auto ret=select(maxfdp, &rset, NULL, NULL,&til);
+      if(ret==-1){
+          qDebug()<<"select error";
+      }
+      //出现变更
+      for (auto i = 0; i != dirSize; ++i) {
+        if (FD_ISSET(fdarr[i], &rset)) {
+          CHK(buflen = read(fdarr[i], buf, sizeof(buf)), -1);
+          metadata = (struct fanotify_event_metadata *)&buf;
+          while (FAN_EVENT_OK(metadata, buflen)) {
+            if (metadata->mask & FAN_Q_OVERFLOW) {
+              printf("Queue overflow!\n");
+              continue;
+            }
+            sprintf(fdpath, "/proc/self/fd/%d", metadata->fd);
+            CHK(linklen = readlink(fdpath, path, sizeof(path) - 1), -1);
+            path[linklen] = '\0';
+            auto p =std::string(path);
+            mset.insert(p);
+//                        printf("%s opened by process %d.\n", path,
+//                        (int)metadata->pid);
+            close(metadata->fd);
+            metadata = FAN_EVENT_NEXT(metadata, buflen);
+          }
+          //!! 注意，要重新设置
+        }
+        FD_SET(fdarr[i], &rset);
+      }
     }
 
-    ioctl_wd_args wd;
-
-    wd.condition_timeout = this->second;
-
-    vfsInfo("before ioctl");
-    while (ioctl(fd, VC_IOCTL_WAITDATA, &wd) == 0) {
-
-        QCoreApplication::processEvents();
-        vfsInfo("in wile");
-        //if (!watchList.isEmpty()) {
-        //    QMutexLocker locker(&wlMutex);
-        //    vfsInfo("while want get");
-        //    vfsInfo("while got ");
-        //    if (!watchList.isEmpty()) {
-        //        ioctl_item_args item;
-        //        if (ioctl(fd, VC_IOCTL_DELETEITEM,0) != 0) {
-        //            OnError("clear kernel watch paths failed");
-        //        }
-        //        for (auto path : watchList) {
-        //            item.data = path.toLatin1().data();
-        //            item.size = path.length() + 1;
-        //            if (ioctl(fd, VC_IOCTL_ADDITEM, &item) != 0) {
-        //                OnError("Add " + path + " Failed");
-        //            }
-        //        }
-        //        watchList.clear();
-        //        vfsInfo("added");
-        //    }
-        //}
-
-        ioctl_rs_args irsa;
-
-        if (ioctl(fd, VC_IOCTL_READSTAT, &irsa) != 0) {
-            close(fd);
-        }
-
-        emit fileWrited(QStringList());
-        if (irsa.cur_changes == 0) {
-            vfsInfo("no changes?!");
-            continue;
-        }
-
-        char buf[1 << 20];
-
-        ioctl_rd_args ira;
-
-        ira.data = buf;
-        ira.size = sizeof(buf);
-        QSet<QString> mset;
-
-        if (ioctl(fd, VC_IOCTL_READDATA, &ira) != 0) {
-        }
-
-        // no more changes
-        if (ira.size == 0) {
-            continue;
-        }
-
-        int off = 0;
-        for (int i = 0; i < ira.size; i++) {
-            char *src = ira.data + off;
-            off += strlen(src) + 1;
-            mset.insert(QString(src));
-        }
-        vfsInfo("emmit  %d change things",mset.size());
-//        QSet<QString> v_intersection;
-//        std::set_intersection(mset.cbegin(),mset.cend(),
-
-                emit fileWrited(QStringList::fromSet(mset));
-    }
-    close(fd);
+  }
 }

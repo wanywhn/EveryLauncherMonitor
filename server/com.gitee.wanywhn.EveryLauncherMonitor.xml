@@ -4,11 +4,6 @@
     <signal name="fileWrited">
       <arg name="files" type="as" direction="out"/>
     </signal>
-    <method name="myrun">
-    </method>
-    <method name="setWatchPaths">
-      <arg name="paths" type="as" direction="in"/>
-    </method>
     <method name="setFileMonitorInter">
       <arg name="sec" type="i" direction="in"/>
     </method>

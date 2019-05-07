@@ -8,15 +8,18 @@
 #include "server.h"
 #include "everylaunchermonitor_adaptor.h"
 
-#define DBUS_SERVER "com.gitee.wanywhn.everylauncherMonitor"
-#define DBUS_PATH "/com/gitee/wanywhn/everylauncherMonitor"
-#define DBUS_INTERFACE "com.gitee.wanywhn.everylauncherMonitor"
+#define DBUS_SERVER "com.gitee.wanywhn.EveryLauncherMonitor"
+#define DBUS_PATH "/com/gitee/wanywhn/EveryLauncherMonitor"
+#define DBUS_INTERFACE "com.gitee.wanywhn.EveryLauncherMonitor"
 
+QString AppName = "EveryLauncher";
 int main(int argc, char *argv[])
 {
     qSetMessagePattern("[%{time yyyy-MM-dd, HH:mm:ss.zzz}] [%{category}-%{type}] [%{function}: %{line}]: %{message}");
 
     QCoreApplication app(argc, argv);
+    QCoreApplication::setApplicationName(AppName);
+    QCoreApplication::setOrganizationName(AppName);
 
 #ifdef QT_NO_DEBUG
     QLoggingCategory::setFilterRules("vfs.info=false");
@@ -37,18 +40,10 @@ int main(int argc, char *argv[])
     }
     connection.registerObject(DBUS_PATH,DBUS_INTERFACE,server);
     QObject::connect(workerThread,&QThread::started,server,&Server::myrun);
-   // static QDBusInterface notifyApp("com.gitee.wanywhn.everylauncher",
-   //                                 "/com/gitee/wanywhn/everylauncher",
-   //                                 "com.gitee.wanywhn.everylauncher");
-   // if(!notifyApp.isValid()){
-   //     qDebug()<<"notify is not valid";
-   //     return 0;
-   // }
     server->moveToThread(workerThread);
-    serverAdapter->moveToThread(workerThread);
     workerThread->start();
-//    QObject::connect(server,&Server::fileWrited,[](QStringList l){
-//                        notifyApp.call( "fileWrited",l);
-//    });
+    QObject::connect(server,&Server::fileWrited,[](QStringList l){
+        qDebug()<<l;
+    });
     return app.exec();
 }

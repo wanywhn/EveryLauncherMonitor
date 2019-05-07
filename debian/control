@@ -2,19 +2,14 @@ Source: everylauncher-monitor
 Section: admin
 Priority: optional
 Maintainer: Jia Qingtong <wanywhn@qq.com>
-Build-Depends: debhelper (>= 9), dkms, dh-systemd, qtbase5-dev,
+Build-Depends: debhelper (>= 9), dh-systemd, qtbase5-dev,
  pkg-config, libdtkcore-dev
 Standards-Version: 3.9.8
 Homepage: https://gitee.com/wanywhn/EveryLauncherMonitor
 
-Package: everylauncher-monitor-drv-dkms
-Architecture: all
-Depends: ${shlibs:Depends}, ${misc:Depends}, dkms
-Description: EveryLauncherMonitor module
- EveryLauncherMonitor kernel module package
 
 Package: everylauncher-monitor-server
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}, everylauncher-monitor-dkms
+Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: EveryLauncherMonitor Server application 
  EveryLauncherMonitor Server package
