@@ -25,34 +25,39 @@ QString RECOLL_CONFIG_DIR = "recoll_conf";
 Q_LOGGING_CATEGORY(vfs, "vfs", QtInfoMsg)
 #define vfsInfo(...) qCInfo(vfs, __VA_ARGS__)
 
-Server::Server(QObject *parent) : QObject(parent) {
+Server::Server(QObject *parent) : QThread(parent) {
   watcher = new QFileSystemWatcher(this);
   timer = new QTimer(this);
-  readConfig();
+  {
+    QMutexLocker locker(&topdirsMutex);
+    readConfig();
+  }
   watcher->addPath(
       QString::fromStdString(theconfig->getConfDir() + "/recoll.conf"));
   connect(watcher, &QFileSystemWatcher::fileChanged, [this]() {
     this->configFileModified = true;
-    readConfig();
+    {
+      QMutexLocker locker(&topdirsMutex);
+      readConfig();
+    }
   });
-  connect(timer, &QTimer::timeout, this,&Server::timeouted);
+  connect(timer, &QTimer::timeout, this, &Server::timeouted);
   timer->setInterval(10000);
   timer->start();
 }
 
 void Server::setFileMonitorInter(int sec) {
-    this->timer->setInterval(1000 * sec);
+  this->timer->setInterval(1000 * sec);
 }
 
-void Server::timeouted()
-{
-    QStringList md;
-    for(auto item:mset){
-        md<<QString::fromStdString(item);
-    }
-    mset.clear();
-    emit fileWrited(md);
-
+void Server::timeouted() {
+  QStringList md;
+  QMutexLocker locker(&msetMutex);
+  for (auto item : mset) {
+    md << QString::fromStdString(item);
+  }
+  mset.clear();
+  emit fileWrited(md);
 }
 
 void Server::readConfig() {
@@ -81,7 +86,7 @@ void Server::readConfig() {
   }
 }
 
-void Server::myrun() {
+void Server::run() {
 
   int maxfdp{0};
   fd_set rset;
@@ -92,42 +97,51 @@ void Server::myrun() {
   ssize_t buflen, linklen;
   struct fanotify_event_metadata *metadata;
   struct timeval til;
-  til.tv_sec=5;
-  til.tv_usec=0;
+  til.tv_sec = selectWaitTime;
+  til.tv_usec = 0;
 
   int *fdarr{nullptr};
   for (;;) {
-    auto dirSize = topdirs.size();
+    int dirSize;
+
+    {
+      QMutexLocker locker(&topdirsMutex);
+      dirSize = topdirs.size();
+    }
     if (dirSize <= 0) {
       sleep(10);
+      continue;
     }
     if (fdarr != nullptr) {
-      delete fdarr;
+      delete[] fdarr;
       fdarr = nullptr;
     }
     fdarr = new int[dirSize];
 
     //创建fanotify
     FD_ZERO(&rset);
-    int i=0;
-    for(auto iter=topdirs.cbegin();iter!=topdirs.cend();++iter,++i){
-//    for (unsigned int i = 0; i != dirSize; ++i) {
-      CHK(fdarr[i] = fanotify_init(FAN_CLASS_NOTIF, O_RDONLY), -1);
+    int i = 0;
+    {
+      QMutexLocker locker(&topdirsMutex);
+      for (auto iter = topdirs.cbegin(); iter != topdirs.cend(); ++iter, ++i) {
+        //    for (unsigned int i = 0; i != dirSize; ++i) {
+        CHK(fdarr[i] = fanotify_init(FAN_CLASS_NOTIF, O_RDONLY), -1);
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 20, 0))
 
-      CHK(fanotify_mark(fdarr[i], FAN_MARK_ADD | FAN_MARK_FILESYSTEM,
-                        FAN_MODIFY | FAN_EVENT_ON_CHILD, AT_FDCWD,
-                        iter->c_str()),
-          -1);
+        CHK(fanotify_mark(fdarr[i], FAN_MARK_ADD | FAN_MARK_FILESYSTEM,
+                          FAN_MODIFY | FAN_EVENT_ON_CHILD, AT_FDCWD,
+                          iter->c_str()),
+            -1);
 #else
-      CHK(fanotify_mark(fdarr[i], FAN_MARK_ADD | FAN_MARK_MOUNT,
-                        FAN_MODIFY | FAN_EVENT_ON_CHILD, AT_FDCWD,
-                        iter->c_str()),
-          -1);
+        CHK(fanotify_mark(fdarr[i], FAN_MARK_ADD | FAN_MARK_MOUNT,
+                          FAN_MODIFY | FAN_EVENT_ON_CHILD, AT_FDCWD,
+                          iter->c_str()),
+            -1);
 #endif
-      FD_SET(fdarr[i], &rset);
-      if (fdarr[i] > maxfdp) {
-        maxfdp = fdarr[i];
+        FD_SET(fdarr[i], &rset);
+        if (fdarr[i] > maxfdp) {
+          maxfdp = fdarr[i];
+        }
       }
     }
     ++maxfdp;
@@ -138,12 +152,15 @@ void Server::myrun() {
         configFileModified = false;
         break;
       }
-      QCoreApplication::processEvents();
-      auto ret=select(maxfdp, &rset, NULL, NULL,&til);
-      if(ret==-1){
-          qDebug()<<"select error";
+      //      QCoreApplication::processEvents();
+      auto ret = select(maxfdp, &rset, NULL, NULL, &til);
+      if (ret == -1) {
+        qDebug() << "select error";
       }
+      til.tv_sec = selectWaitTime;
+      til.tv_usec = 0;
       //出现变更
+      QMutexLocker locker(&msetMutex);
       for (auto i = 0; i != dirSize; ++i) {
         if (FD_ISSET(fdarr[i], &rset)) {
           CHK(buflen = read(fdarr[i], buf, sizeof(buf)), -1);
@@ -156,10 +173,10 @@ void Server::myrun() {
             sprintf(fdpath, "/proc/self/fd/%d", metadata->fd);
             CHK(linklen = readlink(fdpath, path, sizeof(path) - 1), -1);
             path[linklen] = '\0';
-            auto p =std::string(path);
+            auto p = std::string(path);
             mset.insert(p);
-//                        printf("%s opened by process %d.\n", path,
-//                        (int)metadata->pid);
+            //                        printf("%s opened by process %d.\n", path,
+            //                        (int)metadata->pid);
             close(metadata->fd);
             metadata = FAN_EVENT_NEXT(metadata, buflen);
           }
@@ -168,6 +185,5 @@ void Server::myrun() {
         FD_SET(fdarr[i], &rset);
       }
     }
-
   }
 }

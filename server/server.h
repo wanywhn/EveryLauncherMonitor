@@ -11,7 +11,7 @@
 
 extern QString AppName;
 #define CHK(expr, errcode) if((expr)==errcode) perror(#expr), exit(EXIT_FAILURE)
-class Server : public QObject
+class Server : public QThread
 {
     Q_OBJECT
     Q_CLASSINFO("D-Bus Interface","com.gitee.wanywhn.EveryLauncherMonitor")
@@ -19,8 +19,8 @@ class Server : public QObject
 public:
     explicit Server(QObject *parent = nullptr);
 
+    void run();
 public slots:
-    void myrun();
     void setFileMonitorInter(int sec);
 signals:
     void fileWrited(QStringList files);
@@ -39,7 +39,10 @@ private:
 
     QFileSystemWatcher *watcher;
     QTimer *timer;
+    int selectWaitTime{20};
 
+    QMutex msetMutex;
+    QMutex topdirsMutex;
     bool configFileModified{false};
 
 };
