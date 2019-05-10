@@ -8,7 +8,8 @@ QT -= gui
 
 SOURCES += \
     main.cpp \
-    server.cpp
+    server.cpp\
+        everylauncher_interface.cpp
 
 
 #CONFIG(debug, debug|release) {
@@ -21,7 +22,6 @@ LIBS += -lrecoll -L/usr/lib/recoll
 INCLUDEPATH += ../dirvers\
                 ../../recoll1-code/src/common\
                 ../../recoll1-code/src/utils
-#LIBS += -L$$OUT_PWD/../../lib -ldeepin-anything-server-lib
 
 #CONFIG(debug, debug|release) {
 #    DEPENDPATH += $$OUT_PWD/../../lib
@@ -29,7 +29,8 @@ INCLUDEPATH += ../dirvers\
 #}
 
 HEADERS += \
-    server.h
+    server.h\
+        everylauncher_interface.h
 
 isEmpty(PREFIX): PREFIX = /usr
 
