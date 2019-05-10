@@ -42,13 +42,9 @@ Server::Server(QObject *parent) : QThread(parent) {
     }
   });
   connect(timer, &QTimer::timeout, this, &Server::timeouted);
-  timer->setInterval(10000);
   timer->start();
 }
 
-void Server::setFileMonitorInter(int sec) {
-  this->timer->setInterval(1000 * sec);
-}
 
 void Server::timeouted() {
   QStringList md;
@@ -84,6 +80,9 @@ void Server::readConfig() {
   for (auto item : theconfig->getSkippedNames()) {
     skipeedNames.insert(item);
   }
+  int interval;
+  theconfig->getConfParam("monitorIndexInterval",&interval);
+  timer->setInterval((interval>10?interval:10)*1000);
 }
 
 void Server::run() {

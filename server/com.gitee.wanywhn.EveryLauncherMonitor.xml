@@ -4,8 +4,5 @@
     <signal name="fileWrited">
       <arg name="files" type="as" direction="out"/>
     </signal>
-    <method name="setFileMonitorInter">
-      <arg name="sec" type="i" direction="in"/>
-    </method>
   </interface>
 </node>

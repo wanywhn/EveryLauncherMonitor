@@ -20,8 +20,6 @@ public:
     explicit Server(QObject *parent = nullptr);
 
     void run();
-public slots:
-    void setFileMonitorInter(int sec);
 signals:
     void fileWrited(QStringList files);
 
