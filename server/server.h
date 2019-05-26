@@ -19,9 +19,11 @@ class Server : public QThread
 public:
     explicit Server(QObject *parent = nullptr);
 
-    void run();
+    void run() override;
 signals:
     void fileWrited(QStringList files);
+public slots:
+    void wakeup(){};
 
 private slots:
     void timeouted();

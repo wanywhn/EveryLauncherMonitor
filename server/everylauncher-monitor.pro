@@ -1,7 +1,6 @@
 TARGET = everylauncher-monitor
 TEMPLATE = app
-CONFIG += c++11 link_pkgconfig
-PKGCONFIG+=Qt5Xdg
+CONFIG += c++11
 QT += dbus
 QT -= gui
 
@@ -53,7 +52,7 @@ dbus_service.path = /usr/share/dbus-1/services
 target.path = $$PREFIX/bin
 
 systemd_service.files = $${TARGET}.service
-systemd_service.path = $${PREFIX}/lib/systemd/system
+systemd_service.path = /usr/lib/systemd/user
 
 
-INSTALLS += target systemd_service dbus_xmls dbus_service 
+INSTALLS += target dbus_xmls dbus_service #systemd_service 

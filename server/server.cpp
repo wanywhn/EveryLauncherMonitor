@@ -6,7 +6,6 @@
 #include <QLoggingCategory>
 #include <QStandardPaths>
 
-#include <XdgDirs>
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>

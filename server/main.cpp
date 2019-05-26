@@ -42,7 +42,7 @@ int main(int argc, char *argv[]) {
   //    workerThread->start();
 //  QObject::connect(server, &Server::fileWrited,
 //                   [](QStringList l) { qDebug() << l; });
-  EveryLauncherInterface *interface=new EveryLauncherInterface(
+  auto *interface=new ComGiteeWanywhnEveryLauncherInterface(
               DBUS_EVERYLAUNCHER_SERVER,DBUS_EVERYLAUNCHER_PATH,connection,server);
   QObject::connect(server,&Server::fileWrited,[interface](QStringList l){
       if(interface->isValid()){
