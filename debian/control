@@ -2,13 +2,12 @@ Source: everylauncher-monitor
 Section: admin
 Priority: optional
 Maintainer: Jia Qingtong <wanywhn@qq.com>
-Build-Depends: debhelper (>= 9), dh-systemd, qtbase5-dev,
- pkg-config, libdtkcore-dev
+Build-Depends: debhelper (>= 9), dh-systemd
 Standards-Version: 3.9.8
 Homepage: https://gitee.com/wanywhn/EveryLauncherMonitor
 
 
-Package: everylauncher-monitor-server
+Package: everylauncher-monitor
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: EveryLauncherMonitor Server application 

@@ -7,6 +7,6 @@ if [ "$action" = configure ]; then
     setcap cap_sys_admin+ep /usr/bin/everylauncher-monitor ||(echo "Failed set CAP_SYS_ADMIN on everylauncher-monitor" && false)
 fi
 
-#DEBHELPER#
-
+#systemctl --global enable everylauncher-monitor.service
+exit 0
 

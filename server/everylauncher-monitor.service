@@ -1,9 +1,11 @@
 [Unit]
 Description=EveryLauncher Monitor Service
-After=systemd-modules-load.service
+After=dbus.service lightdm.service
 
 [Service]
-ExecStart=/usr/bin/everylauncher-monitor
+ExecStart=/usr/bin/everylauncher-monitor %i
+#User=%i
+#Group=users
 
 [Install]
 WantedBy=multi-user.target

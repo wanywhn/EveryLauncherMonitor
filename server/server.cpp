@@ -6,7 +6,6 @@
 #include <QLoggingCategory>
 #include <QStandardPaths>
 
-#include <XdgDirs>
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
@@ -100,6 +99,8 @@ void Server::run() {
   til.tv_usec = 0;
 
   int *fdarr{nullptr};
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wmissing-noreturn"
   for (;;) {
     int dirSize;
 
@@ -185,4 +186,5 @@ void Server::run() {
       }
     }
   }
+#pragma clang diagnostic pop
 }

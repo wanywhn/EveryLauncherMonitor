@@ -4,5 +4,7 @@
     <signal name="fileWrited">
       <arg name="files" type="as" direction="out"/>
     </signal>
+    <method name="wakeup">
+    </method>
   </interface>
 </node>
